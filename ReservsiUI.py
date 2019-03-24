@@ -15,7 +15,6 @@ INF_VALUE = 1000000
 iteration_depth = 5
 HASHMAP_SIZE = 8
 
-
 def getNewZobrist():
     board = []
     for i in range(8):
@@ -45,6 +44,11 @@ class Hashtable:
     deepest = Hashtable_Node()
     newest = Hashtable_Node()
 
+hashmap = {}
+
+zobrist_white = getNewZobrist()
+zobrist_black = getNewZobrist()
+zobrist_swap_player = [random.randint(0, 2 ** HASHMAP_SIZE - 1), random.randint(0, 2 ** HASHMAP_SIZE - 1)]
 
 
 def hash_update(hashcode,lower,upper,bestmove,depth):
@@ -165,13 +169,14 @@ def mtd(board,computerTile,playerTile,flag,alpha,beta,test,depth):
             bestValue = temp
         else:
             bestValue = temp[0]
-        if bestValue < test:
-            beta = bestValue
-            test = bestValue
-        else:
-            alpha = bestValue
-            test = bestValue + 1
+    if bestValue < test:
+        beta = bestValue
+        test = bestValue
+    else:
+        alpha = bestValue
+        test = bestValue + 1
     return bestValue
+
 def pvs(board,computerTile,playerTile,flag,alpha,beta,depth):
     bestValue = -INF_VALUE
     if flag is True:
@@ -198,6 +203,7 @@ def pvs(board,computerTile,playerTile,flag,alpha,beta,depth):
             if Value > alpha:
                 alpha = Value
     return bestValue
+
 # 退出
 def terminate():
     pygame.quit()
@@ -293,21 +299,23 @@ def getEvaluationOfBoard(board):
     Vmap = np.array([[500, -25, 10, 5, 5, 10, -25, 500], [-25, -45, 1, 1, 1, 1, -45, -25], [10, 1, 3, 2, 2, 3, 1, 10],
                      [5, 1, 2, 1, 1, 2, 1, 5], [5, 1, 2, 1, 1, 2, 1, 5], [10, 1, 3, 2, 2, 3, 1, 10],
                      [-25, -45, 1, 1, 1, 1, -45, -25], [500, -25, 10, 5, 5, 10, -25, 500]])
-    step_black = len(getValidMoves(board, 'black'))
-    step_white = len(getValidMoves(board, 'white'))
     for x in range(8):
         for y in range(8):
             if board[x][y] == 'black':
                 BoardBlack[x][y] = 1
             if board[x][y] == 'white':
                 BoardWhite[x][y] = 1
+
+    step_black = len(getValidMoves(board, 'black'))
+    step_white = len(getValidMoves(board, 'white'))
+
     # #
     # print(BoardWhite,end='**************')
     # print(BoardBlack,end='$$$$$$$$$$$$$$$$$$$')
     BoardBlack = BoardBlack * Vmap
     BoardWhite = BoardWhite * Vmap
-    BlackValue = np.sum(BoardBlack) + step_black - step_white
-    WhiteValue = np.sum(BoardWhite) + step_white - step_black
+    BlackValue = np.sum(BoardBlack) + 10*(step_black - step_white)
+    WhiteValue = np.sum(BoardWhite) + 10*(step_white - step_black)
     return {'black': BlackValue, 'white': WhiteValue}
 
 def getScoreOfBoard(board):
@@ -375,9 +383,11 @@ def getComputerMove(board, computerTile):
         dupeBoard = getBoardCopy(board)
         makeMove(dupeBoard, computerTile, x, y)
         #score = getScoreOfBoard(dupeBoard)[computerTile]
+
         # score = pvs(dupeBoard,computerTile,playerTile,flag,-INF_VALUE,INF_VALUE,iteration_depth)
         score = mtd(dupeBoard,computerTile,playerTile,flag,-INF_VALUE,INF_VALUE,10,iteration_depth)
-        #score = alpha_beta_with_hashtable(dupeBoard,computerTile,playerTile,flag,-INF_VALUE,INF_VALUE,iteration_depth)
+        # score = alpha_beta_with_hashtable(dupeBoard,computerTile,playerTile,flag,-INF_VALUE,INF_VALUE,iteration_depth)
+
         # sscore.append(score)
         # print(sscore)
         if score is not INF_VALUE and score > bestScore:
@@ -388,9 +398,8 @@ def getComputerMove(board, computerTile):
             bestMove = [x,y]
             break
 
-    print(bestMove)
+    # print(bestMove)
     return bestMove
-
 
 # 是否游戏结束
 
@@ -406,7 +415,7 @@ def isGameOver(board):
 def drawTile(board):
     for x in range(8):
         for y in range(8):
-            rectDst = pygame.Rect(BOARDX + x * CELLWIDTH + 2, BOARDY + y * CELLHEIGHT + 2, PIECEWIDTH, PIECEHEIGHT)
+            rectDst = pygame.Rect(BOARDX + (x+1) * CELLWIDTH + 2, BOARDY + (y+1) * CELLHEIGHT + 2, PIECEWIDTH, PIECEHEIGHT)
             if mainBoard[x][y] == 'black':
                 windowSurface.blit(blackImage, rectDst, blackRect)
             elif mainBoard[x][y] == 'white':
@@ -415,7 +424,7 @@ def drawTile(board):
 # 画出能够落子的位置，无返回值
 def drawValidMoves(validmoves):
     for [x,y] in validMoves:
-        rectDst = pygame.Rect(BOARDX + x * CELLWIDTH + 2, BOARDY + y * CELLHEIGHT + 2, PIECEWIDTH, PIECEHEIGHT)
+        rectDst = pygame.Rect(BOARDX + (x+1) * CELLWIDTH + 2, BOARDY + (y+1) * CELLHEIGHT + 2, PIECEWIDTH, PIECEHEIGHT)
         windowSurface.blit(chooseImage, rectDst, chooseRect)
 
 #游戏结束时的界面显示
@@ -428,120 +437,121 @@ def drawGameOver(board):
     textRect.centerx = windowSurface.get_rect().centerx
     textRect.centery = windowSurface.get_rect().centery
     windowSurface.blit(text, textRect)
-def drawWhosTurn(board,tile):
-    outstr = "it is " + tile + "'s turn"
-    text = basicFont.render(outstr, True, BLACK, BLUE)
-    textRect = text.get_rect()
-    textRect.centerx = windowSurface.get_rect().centerx
-    textRect.centery = windowSurface.get_rect().centery + 150
-    windowSurface.blit(text, textRect)
 
-    scorePlayer = getScoreOfBoard(board)[playerTile]
-    scoreComputer = getScoreOfBoard(board)[computerTile]
-    outputStr = "Player vs Computer  " + str(scorePlayer) + ":" + str(scoreComputer)
-    text = basicFont.render(outputStr, True, BLACK, BLUE)
+def drawWhosTurn(board,tile):
+    myFont = pygame.font.SysFont("arial", 28)
+
+    outstr = "it is " + tile + "'s turn"
+    text = myFont.render(outstr, True, (28,28,28))
     textRect = text.get_rect()
     textRect.centerx = windowSurface.get_rect().centerx
     textRect.centery = windowSurface.get_rect().centery + 180
     windowSurface.blit(text, textRect)
-if __name__ == '__main__':
-    hashmap = {}
 
-    print(pygame.font.get_fonts())
-    zobrist_white = getNewZobrist()
-    zobrist_black = getNewZobrist()
-    zobrist_swap_player = [random.randint(0, 2 ** HASHMAP_SIZE - 1), random.randint(0, 2 ** HASHMAP_SIZE - 1)]
-    # 初始化
-    pygame.init()
-    mainClock = pygame.time.Clock()
-    # 加载图片
-    boardImage = pygame.image.load('board.png')
-    boardRect = boardImage.get_rect()
-    blackImage = pygame.image.load('black.png')
-    blackRect = blackImage.get_rect()
-    whiteImage = pygame.image.load('white.png')
-    whiteRect = whiteImage.get_rect()
+    scorePlayer = getScoreOfBoard(board)[playerTile]
+    scoreComputer = getScoreOfBoard(board)[computerTile]
+    outputStr = "Player vs Computer:  " + str(scorePlayer) + "-" + str(scoreComputer)
+    text = myFont.render(outputStr, True, (139,69,19))
+    textRect = text.get_rect()
+    textRect.centerx = windowSurface.get_rect().centerx
+    textRect.centery = windowSurface.get_rect().centery + 210
+    windowSurface.blit(text, textRect)
 
-    chooseImage = pygame.image.load('choose.png')
-    chooseRect = chooseImage.get_rect()
+# 初始化
+pygame.init()
+mainClock = pygame.time.Clock()
+# 加载图片
+boardImage = pygame.image.load('board.jpg')
+boardRect = boardImage.get_rect()
+blackImage = pygame.image.load('black.png')
+blackRect = blackImage.get_rect()
+whiteImage = pygame.image.load('white.png')
+whiteRect = whiteImage.get_rect()
 
-    basicFont = pygame.font.SysFont('arial', 36)
+chooseImage = pygame.image.load('choose.png')
+chooseRect = chooseImage.get_rect()
 
-    gameoverStr = 'Game Over Score '
-    mainBoard = getNewBoard()
-    resetBoard(mainBoard)
-    turn = whoGoesFirst()
-    if turn == 'player':
-        playerTile = 'black'
-        computerTile = 'white'
-    else:
-        playerTile = 'white'
-        computerTile = 'black'
-    print(turn)
+basicFont = pygame.font.SysFont('arial', 36)
 
-    # 设置窗口界面
+gameoverStr = 'Game Over Score '
+mainBoard = getNewBoard()
+resetBoard(mainBoard)
+turn = whoGoesFirst()
+if turn == 'player':
+    playerTile = 'black'
+    computerTile = 'white'
+else:
+    playerTile = 'white'
+    computerTile = 'black'
+print(turn)
 
-    windowSurface = pygame.display.set_mode((boardRect.width, boardRect.height+100))
-    pygame.display.set_caption('黑白棋')
-    gameOver = False
-    # 游戏主循环
-    validMoves = [[2,4],[3,5],[4,2],[5,3]]
-    current_depth = 0
-    find_number = 0
-    non_find_number = 0
-    while True:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                terminate()
-            if gameOver == False and turn == 'player' and event.type == MOUSEBUTTONDOWN and event.button == 1:
-                x, y = pygame.mouse.get_pos()
+# 设置窗口界面
 
-                col = int((x - BOARDX) / CELLWIDTH)
-                row = int((y - BOARDY) / CELLHEIGHT)
+windowSurface = pygame.display.set_mode((boardRect.width, boardRect.height+100))
+pygame.display.set_caption('黑白棋')
+gameOver = False
+# 游戏主循环
+validMoves = [[2,4],[3,5],[4,2],[5,3]]
+current_depth = 0
+find_number = 0
+non_find_number = 0
+while True:
+    for event in pygame.event.get():
+        if event.type == QUIT:
+            terminate()
+        if gameOver == False and turn == 'player' and event.type == MOUSEBUTTONDOWN and event.button == 1:
+            x, y = pygame.mouse.get_pos()
 
-                if makeMove(mainBoard, playerTile, col, row) == True:
-                    current_depth += 1
-                    print(current_depth)
-                    validMoves = getValidMoves(mainBoard, computerTile)
-                    if validMoves != []:
-                        turn = 'computer'
-                else:
-                    if len(getValidMoves(mainBoard, playerTile)) == 0:
-                        if getValidMoves(mainBoard, computerTile) != []:
-                            turn = 'computer'
-                        else:
-                            gameOver = True
-        windowSurface.fill(BACKGROUNDCOLOR)
-        windowSurface.blit(boardImage, boardRect, boardRect)
-        drawWhosTurn(mainBoard,turn)
-        drawValidMoves(validMoves)
-        drawTile(mainBoard)
-        # windowSurface.fill(BACKGROUNDCOLOR)
-        # windowSurface.blit(boardImage, boardRect, boardRect)
+            col = int((x - BOARDX) / CELLWIDTH) - 1
+            row = int((y - BOARDY) / CELLHEIGHT) - 1
 
-        if isGameOver(mainBoard) or gameOver is True:
-            drawGameOver(mainBoard)
-
-        #刷新显示与计时
-
-        pygame.display.update()
-
-        mainClock.tick(FPS)
-
-        if (gameOver == False and turn == 'computer'):
-            tmp = getComputerMove(mainBoard, computerTile)
-            if len(tmp):
-                x, y = tmp
+            if makeMove(mainBoard, playerTile, col, row) == True:
+                current_depth += 1
+                # print(current_depth)
+                validMoves = getValidMoves(mainBoard, computerTile)
+                if validMoves != []:
+                    turn = 'computer'
             else:
-                if getValidMoves(mainBoard, playerTile)!= []:
-                    turn = 'player'
-                else:
-                    gameOver = True
-            time.sleep(1)
-            makeMove(mainBoard, computerTile, x, y)
-            current_depth += 1
-            print(current_depth)
-            # 玩家有可行的走法
-            validMoves = getValidMoves(mainBoard, playerTile)
-            if validMoves != []:
+                if getValidMoves(mainBoard, playerTile) == []:
+                    if len(getComputerMove(mainBoard, computerTile)):
+                        turn = 'computer'
+                    else:
+                        gameOver = True
+
+    windowSurface.fill(BACKGROUNDCOLOR)
+    windowSurface.blit(boardImage, boardRect, boardRect)
+    drawWhosTurn(mainBoard,turn)
+    drawValidMoves(validMoves)
+    drawTile(mainBoard)
+    # windowSurface.fill(BACKGROUNDCOLOR)
+    # windowSurface.blit(boardImage, boardRect, boardRect)
+
+    if isGameOver(mainBoard) or gameOver is True:
+        drawGameOver(mainBoard)
+
+    #刷新显示与计时
+
+    pygame.display.update()
+
+    mainClock.tick(FPS)
+
+    if (gameOver == False and turn == 'computer'):
+
+        temp = getComputerMove(mainBoard, computerTile)
+        if len(temp):
+            x, y = temp
+
+        else:
+            if getValidMoves(mainBoard, playerTile)!= []:
                 turn = 'player'
+                drawValidMoves(getValidMoves(mainBoard, playerTile))
+            else:
+                gameOver = True
+        time.sleep(1)
+        makeMove(mainBoard, computerTile, x, y)
+        current_depth += 1
+        # print(current_depth)
+        # 玩家有可行的走法
+        validMoves = getValidMoves(mainBoard, playerTile)
+        if validMoves != []:
+            turn = 'player'
